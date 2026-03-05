@@ -74,3 +74,13 @@ int main() {
     return 0;
 }
 ```
+
+Run
+```sh
+gcc main.c -o ./main
+./main
+```
+Then
+```sh
+hexdump -C meu_disco_raw.bin
+```
