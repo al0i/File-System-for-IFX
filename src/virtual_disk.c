@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define BLOCK_SIZE 512
 #define TOTAL_BLOCKS 16
@@ -13,6 +12,52 @@ typedef struct {
     int total_blocks;       // 16
     int data_start_block;   // primeiro bloco de dados
 } RootBlock;
+
+static void zero_bytes(void *buffer, size_t length)
+{
+    unsigned char *bytes = buffer;
+
+    for (size_t i = 0; i < length; i++) {
+        bytes[i] = 0;
+    }
+}
+
+static void copy_bytes(void *destination, const void *source, size_t length)
+{
+    unsigned char *destination_bytes = destination;
+    const unsigned char *source_bytes = source;
+
+    for (size_t i = 0; i < length; i++) {
+        destination_bytes[i] = source_bytes[i];
+    }
+}
+
+static size_t text_length(const char *text)
+{
+    size_t length = 0;
+
+    while (text[length] != '\0') {
+        length++;
+    }
+
+    return length;
+}
+
+static void copy_text(char *destination, const char *source, size_t destination_size)
+{
+    size_t i = 0;
+
+    if (destination_size == 0) {
+        return;
+    }
+
+    while (i < destination_size - 1 && source[i] != '\0') {
+        destination[i] = source[i];
+        i++;
+    }
+
+    destination[i] = '\0';
+}
 
 /**
  * Faz o buffer do arquivo .bin com verificação de exitência 
@@ -43,7 +88,7 @@ int initialize_virtual_disk(FILE *disk)
 {
     unsigned char block[BLOCK_SIZE];
 
-    memset(block, 0, BLOCK_SIZE);
+    zero_bytes(block, BLOCK_SIZE);
 
     if (fseek(disk, 0, SEEK_SET) != 0) {
         perror("Erro ao mover ponteiro para o início do disco");
@@ -80,12 +125,12 @@ int debug_write_block_labels(FILE *disk)
     char label[32];
 
     for (int i = 0; i < TOTAL_BLOCKS; i++) {
-        memset(block, 0, BLOCK_SIZE);
-        memset(label, 0, sizeof(label));
+        zero_bytes(block, BLOCK_SIZE);
+        zero_bytes(label, sizeof(label));
 
         snprintf(label, sizeof(label), "BLOCK %02d", i);
 
-        memcpy(block, label, strlen(label));
+        copy_bytes(block, label, text_length(label));
 
         long offset = i * BLOCK_SIZE;
 
@@ -114,18 +159,18 @@ int write_root_block(FILE *disk)
 {
     unsigned char block[BLOCK_SIZE];
 
-    memset(block, 0, BLOCK_SIZE);
+    zero_bytes(block, BLOCK_SIZE);
 
     RootBlock rootBlock;
 
-    memset(&rootBlock, 0, sizeof(RootBlock));
+    zero_bytes(&rootBlock, sizeof(RootBlock));
 
-    strcpy(rootBlock.signature, "IFXFS");
+    copy_text(rootBlock.signature, "IFXFS", sizeof(rootBlock.signature));
     rootBlock.block_size = BLOCK_SIZE;
     rootBlock.total_blocks = TOTAL_BLOCKS;
     rootBlock.data_start_block = 1;
 
-    memcpy(block, &rootBlock, sizeof(RootBlock));
+    copy_bytes(block, &rootBlock, sizeof(RootBlock));
 
     if (fseek(disk, 0, SEEK_SET) != 0) {
         perror("Erro ao posicionar no bloco 0");
