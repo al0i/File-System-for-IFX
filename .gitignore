@@ -1,1 +1,5 @@
-meu_disco_raw.bin
+build/
+
+.git-file-block-control-copy
+
+.codex
