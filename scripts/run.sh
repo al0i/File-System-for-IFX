@@ -1,7 +1,7 @@
 mkdir -p build
 
 # echo "Compilando..."
-gcc src/main.c -o build/main
+gcc src/main.c src/ifx_fs.c src/virtual_disk.c -o build/main
 
 if [ $? -eq 0 ]; then
     ./build/main

@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "virtual_disk.h"
+
 #define BLOCK_SIZE 512
 #define TOTAL_BLOCKS 16
 #define FREE_MAP_BLOCK 1
@@ -288,7 +290,7 @@ static int is_valid_root_block(RootBlock *rootBlock)
  *
  * @return ponteiro para o arquivo do disco virtual; NULL em caso de erro.
  */
-FILE* init_disk()
+FILE* init_disk(void)
 {
     FILE *disk = fopen(disk_path, "r+b");
 
@@ -510,7 +512,8 @@ int add_root_directory_entry(FILE *disk, const char *filename, int firstBlock)
     int currentEntry;
     int entryOffset;
 
-    if (firstBlock < DATA_START_BLOCK || firstBlock >= TOTAL_BLOCKS) {
+    if (firstBlock != DIRECTORY_ENTRY_NONE &&
+        (firstBlock < DATA_START_BLOCK || firstBlock >= TOTAL_BLOCKS)) {
         return -1;
     }
 
@@ -571,6 +574,21 @@ int add_root_directory_entry(FILE *disk, const char *filename, int firstBlock)
     copy_bytes(block + entryOffset, &entry, sizeof(DirectoryEntry));
 
     return write_root_directory_block(disk, block);
+}
+
+/**
+ * Cria um arquivo vazio no diretorio raiz.
+ *
+ * A entrada ainda nao recebe bloco de dados. A alocacao real de blocos pertence
+ * a etapa de implementacao de arquivos.
+ *
+ * @param disk arquivo do disco virtual.
+ * @param filename nome do arquivo no formato 8.3.
+ * @return 0 em caso de sucesso; -1 em caso de erro.
+ */
+int create_root_directory_file(FILE *disk, const char *filename)
+{
+    return add_root_directory_entry(disk, filename, DIRECTORY_ENTRY_NONE);
 }
 
 /**

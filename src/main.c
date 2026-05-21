@@ -1,23 +1,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "virtual_disk.c"
+#include "ifx_fs.h"
 
 int main()
 {
-    FILE *disk = init_disk();
+    IFXFileSystem fs;
 
-    if (disk == NULL) {
+    if (ifx_init(&fs) != 0) {
         return -1;
     }
 
-    if (mount_or_format_virtual_disk(disk) != 0)
-    {
-        fclose(disk);
+    if (ifx_mount(&fs) != 0) {
+        ifx_close(&fs);
         return -1;
     }
 
-    fclose(disk);
+    if (ifx_close(&fs) != 0) {
+        return -1;
+    }
 
     return 0;
 }
