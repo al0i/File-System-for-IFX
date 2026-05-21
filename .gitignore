@@ -5,3 +5,4 @@ src/resources/*.bin
 .git-file-block-control-copy
 
 .codex
+CODEX.md

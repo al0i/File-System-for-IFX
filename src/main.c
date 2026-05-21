@@ -7,23 +7,17 @@ int main()
 {
     FILE *disk = init_disk();
 
-    if (initialize_virtual_disk(disk) != 0)
+    if (disk == NULL) {
+        return -1;
+    }
+
+    if (mount_or_format_virtual_disk(disk) != 0)
     {
         fclose(disk);
         return -1;
     }
 
-    if (debug_write_block_labels(disk) != 0)
-    {
-        fclose(disk);
-        return -1;
-    }
-
-    if (write_root_block(disk) != 0)
-    {
-        fclose(disk);
-        return -1;
-    }
+    fclose(disk);
 
     return 0;
 }
