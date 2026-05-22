@@ -6,12 +6,20 @@
 int main()
 {
     IFXFileSystem fs;
+    const unsigned char message[] = "IFX";
 
     if (ifx_init(&fs) != 0) {
         return -1;
     }
 
     if (ifx_mount(&fs) != 0) {
+        ifx_close(&fs);
+        return -1;
+    }
+
+    ifx_create_file(&fs, "DEMO.TXT");
+
+    if (ifx_write_file(&fs, "DEMO.TXT", message, 3) != 0) {
         ifx_close(&fs);
         return -1;
     }

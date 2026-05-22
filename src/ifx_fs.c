@@ -44,6 +44,15 @@ int ifx_create_file(IFXFileSystem *fs, const char *filename)
     return create_root_directory_file(fs->disk, filename);
 }
 
+int ifx_write_file(IFXFileSystem *fs, const char *filename, const unsigned char *data, int size)
+{
+    if (fs == NULL || fs->disk == NULL || !fs->mounted) {
+        return -1;
+    }
+
+    return write_root_directory_file(fs->disk, filename, data, size);
+}
+
 int ifx_close(IFXFileSystem *fs)
 {
     if (fs == NULL) {

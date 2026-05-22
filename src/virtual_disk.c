@@ -10,6 +10,7 @@
 #define ROOT_DIR_BLOCK 3
 #define DATA_START_BLOCK 4
 #define DIRECTORY_ENTRY_NONE -1
+#define ROOT_DIRECTORY_SIGNATURE "DIRLS2"
 
 const char *disk_path = "./src/resources/virtual_disk.bin";
 
@@ -33,6 +34,7 @@ typedef struct {
 typedef struct {
     char name[9];
     char extension[4];
+    int size;
     int first_block;
     int next_entry;
     int used;
@@ -167,6 +169,36 @@ static int is_valid_filename_character(char character)
 static int root_directory_capacity()
 {
     return (BLOCK_SIZE - (int)sizeof(DirectoryBlockHeader)) / (int)sizeof(DirectoryEntry);
+}
+
+/**
+ * Escreve um bloco de dados vazio.
+ *
+ * @param disk arquivo do disco virtual.
+ * @param blockNumber numero do bloco de dados que sera zerado.
+ * @return 0 em caso de sucesso; -1 em caso de erro.
+ */
+static int write_empty_data_block(FILE *disk, int blockNumber)
+{
+    unsigned char block[BLOCK_SIZE];
+
+    if (blockNumber < DATA_START_BLOCK || blockNumber >= TOTAL_BLOCKS) {
+        return -1;
+    }
+
+    zero_bytes(block, BLOCK_SIZE);
+
+    if (fseek(disk, blockNumber * BLOCK_SIZE, SEEK_SET) != 0) {
+        perror("Erro ao posicionar no bloco de dados");
+        return -1;
+    }
+
+    if (fwrite(block, sizeof(unsigned char), BLOCK_SIZE, disk) != BLOCK_SIZE) {
+        perror("Erro ao inicializar bloco de dados");
+        return -1;
+    }
+
+    return 0;
 }
 
 /**
@@ -390,7 +422,7 @@ static void create_empty_root_directory_block(unsigned char *block)
     zero_bytes(block, BLOCK_SIZE);
     zero_bytes(&header, sizeof(DirectoryBlockHeader));
 
-    copy_text(header.signature, "DIRLST", sizeof(header.signature));
+    copy_text(header.signature, ROOT_DIRECTORY_SIGNATURE, sizeof(header.signature));
     header.first_entry = DIRECTORY_ENTRY_NONE;
     header.free_entry = capacity > 0 ? 0 : DIRECTORY_ENTRY_NONE;
     header.entry_count = 0;
@@ -400,6 +432,7 @@ static void create_empty_root_directory_block(unsigned char *block)
     for (int i = 0; i < capacity; i++) {
         zero_bytes(&entry, sizeof(DirectoryEntry));
 
+        entry.size = 0;
         entry.first_block = DIRECTORY_ENTRY_NONE;
         entry.next_entry = i + 1 < capacity ? i + 1 : DIRECTORY_ENTRY_NONE;
         entry.used = 0;
@@ -482,7 +515,7 @@ int ensure_root_directory_block(FILE *disk)
     zero_bytes(&header, sizeof(DirectoryBlockHeader));
     copy_bytes(&header, block, sizeof(DirectoryBlockHeader));
 
-    if (text_equals(header.signature, "DIRLST")) {
+    if (text_equals(header.signature, ROOT_DIRECTORY_SIGNATURE)) {
         return 0;
     }
 
@@ -493,8 +526,8 @@ int ensure_root_directory_block(FILE *disk)
 /**
  * Adiciona uma entrada 8.3 ao diretorio raiz.
  *
- * A entrada guarda apenas o nome e o primeiro bloco do arquivo; os demais blocos
- * devem ser encontrados pela estrategia de alocacao, como FAT, em etapa posterior.
+ * A entrada guarda nome, tamanho logico e primeiro bloco do arquivo. Os demais
+ * blocos devem ser encontrados pela estrategia de alocacao em etapa posterior.
  *
  * @param disk arquivo do disco virtual.
  * @param filename nome no formato 8.3.
@@ -563,6 +596,7 @@ int add_root_directory_entry(FILE *disk, const char *filename, int firstBlock)
     zero_bytes(&entry, sizeof(DirectoryEntry));
     copy_text(entry.name, name, sizeof(entry.name));
     copy_text(entry.extension, extension, sizeof(entry.extension));
+    entry.size = 0;
     entry.first_block = firstBlock;
     entry.next_entry = header.first_entry;
     entry.used = 1;
@@ -589,6 +623,189 @@ int add_root_directory_entry(FILE *disk, const char *filename, int firstBlock)
 int create_root_directory_file(FILE *disk, const char *filename)
 {
     return add_root_directory_entry(disk, filename, DIRECTORY_ENTRY_NONE);
+}
+
+/**
+ * Associa um arquivo do diretorio raiz a um bloco de dados inicial.
+ *
+ * Esta etapa usa alocacao direta de um unico bloco: a entrada do diretorio aponta
+ * para o primeiro bloco de dados do arquivo. O bloco e escolhido procurando um
+ * bloco de dados ainda nao referenciado por outra entrada ativa.
+ *
+ * @param disk arquivo do disco virtual.
+ * @param filename nome do arquivo no formato 8.3.
+ * @return 0 em caso de sucesso; -1 em caso de erro.
+ */
+static int allocate_root_directory_file_storage(FILE *disk, const char *filename)
+{
+    unsigned char block[BLOCK_SIZE];
+    DirectoryBlockHeader header;
+    DirectoryEntry entry;
+    char name[9];
+    char extension[4];
+    int referencedBlocks[TOTAL_BLOCKS];
+    int currentEntry;
+    int entryOffset;
+    int targetEntryOffset = -1;
+    int allocatedBlock = DIRECTORY_ENTRY_NONE;
+
+    if (split_filename_8_3(filename, name, extension) != 0) {
+        return -1;
+    }
+
+    if (ensure_root_directory_block(disk) != 0) {
+        return -1;
+    }
+
+    if (read_root_directory_block(disk, block) != 0) {
+        return -1;
+    }
+
+    for (int i = 0; i < TOTAL_BLOCKS; i++) {
+        referencedBlocks[i] = 0;
+    }
+
+    copy_bytes(&header, block, sizeof(DirectoryBlockHeader));
+    currentEntry = header.first_entry;
+
+    while (currentEntry != DIRECTORY_ENTRY_NONE) {
+        entryOffset = sizeof(DirectoryBlockHeader) + (currentEntry * sizeof(DirectoryEntry));
+
+        zero_bytes(&entry, sizeof(DirectoryEntry));
+        copy_bytes(&entry, block + entryOffset, sizeof(DirectoryEntry));
+
+        if (entry.used &&
+            entry.first_block >= DATA_START_BLOCK &&
+            entry.first_block < TOTAL_BLOCKS) {
+            referencedBlocks[entry.first_block] = 1;
+        }
+
+        if (entry.used &&
+            text_equals(entry.name, name) &&
+            text_equals(entry.extension, extension)) {
+            targetEntryOffset = entryOffset;
+
+            if (entry.first_block != DIRECTORY_ENTRY_NONE) {
+                return 0;
+            }
+        }
+
+        currentEntry = entry.next_entry;
+    }
+
+    if (targetEntryOffset == -1) {
+        return -1;
+    }
+
+    for (int i = DATA_START_BLOCK; i < TOTAL_BLOCKS; i++) {
+        if (!referencedBlocks[i]) {
+            allocatedBlock = i;
+            break;
+        }
+    }
+
+    if (allocatedBlock == DIRECTORY_ENTRY_NONE) {
+        return -1;
+    }
+
+    if (write_empty_data_block(disk, allocatedBlock) != 0) {
+        return -1;
+    }
+
+    zero_bytes(&entry, sizeof(DirectoryEntry));
+    copy_bytes(&entry, block + targetEntryOffset, sizeof(DirectoryEntry));
+    entry.first_block = allocatedBlock;
+
+    copy_bytes(block + targetEntryOffset, &entry, sizeof(DirectoryEntry));
+
+    return write_root_directory_block(disk, block);
+}
+
+/**
+ * Escreve bytes no bloco inicial de um arquivo do diretorio raiz.
+ *
+ * A escrita atual usa apenas um bloco de dados. Se o arquivo ainda nao possui
+ * bloco inicial, a alocacao direta de `x_12` e aplicada internamente.
+ *
+ * @param disk arquivo do disco virtual.
+ * @param filename nome do arquivo no formato 8.3.
+ * @param data bytes que serao gravados.
+ * @param size quantidade de bytes logicos que serao gravados.
+ * @return 0 em caso de sucesso; -1 em caso de erro.
+ */
+int write_root_directory_file(FILE *disk, const char *filename, const unsigned char *data, int size)
+{
+    unsigned char directoryBlock[BLOCK_SIZE];
+    unsigned char dataBlock[BLOCK_SIZE];
+    DirectoryBlockHeader header;
+    DirectoryEntry entry;
+    char name[9];
+    char extension[4];
+    int currentEntry;
+    int entryOffset;
+
+    if (size < 0 || size > BLOCK_SIZE) {
+        return -1;
+    }
+
+    if (size > 0 && data == NULL) {
+        return -1;
+    }
+
+    if (split_filename_8_3(filename, name, extension) != 0) {
+        return -1;
+    }
+
+    if (allocate_root_directory_file_storage(disk, filename) != 0) {
+        return -1;
+    }
+
+    if (read_root_directory_block(disk, directoryBlock) != 0) {
+        return -1;
+    }
+
+    copy_bytes(&header, directoryBlock, sizeof(DirectoryBlockHeader));
+    currentEntry = header.first_entry;
+
+    while (currentEntry != DIRECTORY_ENTRY_NONE) {
+        entryOffset = sizeof(DirectoryBlockHeader) + (currentEntry * sizeof(DirectoryEntry));
+
+        zero_bytes(&entry, sizeof(DirectoryEntry));
+        copy_bytes(&entry, directoryBlock + entryOffset, sizeof(DirectoryEntry));
+
+        if (entry.used &&
+            text_equals(entry.name, name) &&
+            text_equals(entry.extension, extension)) {
+            if (entry.first_block < DATA_START_BLOCK || entry.first_block >= TOTAL_BLOCKS) {
+                return -1;
+            }
+
+            zero_bytes(dataBlock, BLOCK_SIZE);
+
+            if (size > 0) {
+                copy_bytes(dataBlock, data, (size_t)size);
+            }
+
+            if (fseek(disk, entry.first_block * BLOCK_SIZE, SEEK_SET) != 0) {
+                perror("Erro ao posicionar no bloco inicial do arquivo");
+                return -1;
+            }
+
+            if (fwrite(dataBlock, sizeof(unsigned char), BLOCK_SIZE, disk) != BLOCK_SIZE) {
+                perror("Erro ao escrever conteudo do arquivo");
+                return -1;
+            }
+
+            entry.size = size;
+            copy_bytes(directoryBlock + entryOffset, &entry, sizeof(DirectoryEntry));
+
+            return write_root_directory_block(disk, directoryBlock);
+        }
+
+        currentEntry = entry.next_entry;
+    }
+
+    return -1;
 }
 
 /**
