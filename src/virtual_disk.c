@@ -809,6 +809,123 @@ int write_root_directory_file(FILE *disk, const char *filename, const unsigned c
 }
 
 /**
+ * Carrega os metadados de um arquivo do diretorio raiz para memoria.
+ *
+ * Esta funcao representa o passo de abertura: o diretorio e lido em um buffer,
+ * a entrada nomeada e localizada e seus atributos minimos ficam disponiveis
+ * para a tabela de descritores da fachada IFX.
+ *
+ * @param disk arquivo do disco virtual.
+ * @param filename nome do arquivo no formato 8.3.
+ * @param record destino para tamanho logico e primeiro bloco.
+ * @return 0 em caso de sucesso; -1 em caso de erro.
+ */
+int load_root_directory_file_record(FILE *disk, const char *filename, VirtualDiskFileRecord *record)
+{
+    unsigned char directoryBlock[BLOCK_SIZE];
+    DirectoryBlockHeader header;
+    DirectoryEntry entry;
+    char name[9];
+    char extension[4];
+    int currentEntry;
+    int entryOffset;
+
+    if (record == NULL) {
+        return -1;
+    }
+
+    record->size = 0;
+    record->first_block = DIRECTORY_ENTRY_NONE;
+
+    if (split_filename_8_3(filename, name, extension) != 0) {
+        return -1;
+    }
+
+    if (ensure_root_directory_block(disk) != 0) {
+        return -1;
+    }
+
+    if (read_root_directory_block(disk, directoryBlock) != 0) {
+        return -1;
+    }
+
+    copy_bytes(&header, directoryBlock, sizeof(DirectoryBlockHeader));
+    currentEntry = header.first_entry;
+
+    while (currentEntry != DIRECTORY_ENTRY_NONE) {
+        entryOffset = sizeof(DirectoryBlockHeader) + (currentEntry * sizeof(DirectoryEntry));
+
+        zero_bytes(&entry, sizeof(DirectoryEntry));
+        copy_bytes(&entry, directoryBlock + entryOffset, sizeof(DirectoryEntry));
+
+        if (entry.used &&
+            text_equals(entry.name, name) &&
+            text_equals(entry.extension, extension)) {
+            record->size = entry.size;
+            record->first_block = entry.first_block;
+            return 0;
+        }
+
+        currentEntry = entry.next_entry;
+    }
+
+    return -1;
+}
+
+/**
+ * Le bytes do bloco inicial de um arquivo ja localizado pelo diretorio.
+ *
+ * A camada IFX controla o cursor do descritor. Esta funcao apenas traduz
+ * primeiro bloco + deslocamento em leitura fisica no disco virtual.
+ *
+ * @param disk arquivo do disco virtual.
+ * @param firstBlock primeiro bloco de dados do arquivo.
+ * @param offset deslocamento dentro do bloco inicial.
+ * @param buffer destino dos bytes lidos.
+ * @param count quantidade de bytes solicitada.
+ * @return quantidade de bytes lidos; -1 em caso de erro.
+ */
+int read_root_directory_file_bytes(FILE *disk, int firstBlock, int offset, unsigned char *buffer, int count)
+{
+    if (offset < 0 || count < 0) {
+        return -1;
+    }
+
+    if (count == 0) {
+        return 0;
+    }
+
+    if (buffer == NULL) {
+        return -1;
+    }
+
+    if (firstBlock < DATA_START_BLOCK || firstBlock >= TOTAL_BLOCKS) {
+        return -1;
+    }
+
+    if (offset >= BLOCK_SIZE || offset + count > BLOCK_SIZE) {
+        return -1;
+    }
+
+    if (fseek(disk, (firstBlock * BLOCK_SIZE) + offset, SEEK_SET) != 0) {
+        perror("Erro ao posicionar para leitura do arquivo");
+        return -1;
+    }
+
+    if (fread(buffer, sizeof(unsigned char), (size_t)count, disk) != (size_t)count) {
+        if (ferror(disk)) {
+            perror("Erro ao ler conteudo do arquivo");
+            return -1;
+        }
+
+        clearerr(disk);
+        return -1;
+    }
+
+    return count;
+}
+
+/**
  * Escreve labels textuais em todos os blocos para depuracao visual.
  *
  * Esta funcao e destrutiva e nao deve ser chamada durante montagem normal.

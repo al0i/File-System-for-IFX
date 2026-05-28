@@ -1,7 +1,8 @@
 build/
 
-src/resources/*.bin
+**/*.bin
 
 .git-file-block-control-copy
 
 .codex
+

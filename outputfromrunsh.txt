@@ -1,4 +1,6 @@
+$ ./scripts/run.sh 
 Disco virtual montado sem formatar.
+Arquivo lido: IFX
 
 00000000  49 46 58 46 53 00 00 00  00 02 00 00 10 00 00 00  |IFXFS...........|
 00000010  01 00 00 00 02 00 00 00  03 00 00 00 04 00 00 00  |................|

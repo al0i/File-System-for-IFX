@@ -88,6 +88,7 @@ Estado implementado:
 - `src/virtual_disk.h` expoe somente as operacoes de disco que a fachada precisa
 - `src/virtual_disk.c` continua concentrando o layout persistente e as estruturas internas
 - `src/main.c` usa `ifx_init`, `ifx_mount` e `ifx_close`
+- `docs/manual_biblioteca_ifx.md` documenta o uso publico da biblioteca IFX
 
 API publica atual:
 
@@ -95,6 +96,9 @@ API publica atual:
 - `ifx_mount`: monta o disco existente ou formata se estiver vazio/invalido
 - `ifx_create_file`: cria uma entrada vazia no diretorio raiz
 - `ifx_write_file`: escreve bytes em um arquivo existente
+- `ifx_open_file`: carrega metadados e endereco inicial do arquivo para uma entrada de descritor em memoria
+- `ifx_read_file`: le bytes a partir do cursor atual do descritor aberto
+- `ifx_close_file`: libera uma entrada da tabela de descritores em memoria
 - `ifx_close`: fecha o disco virtual e limpa o estado da estrutura
 
 Limite importante:
@@ -104,6 +108,8 @@ Limite importante:
 - `ifx_write_file` aloca o bloco inicial internamente se o arquivo ainda nao tiver bloco
 - `ifx_write_file` substitui o conteudo logico do arquivo a partir do inicio
 - a escrita atual fica limitada a um bloco de dados
+- `ifx_read_file` depende de `ifx_open_file` e avanca o cursor do descritor em memoria
+- a leitura atual tambem fica limitada ao bloco inicial do arquivo
 - o controle real de blocos livres pertence a `x_14 based on y_14`
 - metadados mais completos, alem do tamanho logico atual, pertencem a evolucoes futuras de `x_5` ou etapas posteriores
 
@@ -356,12 +362,13 @@ Invariantes:
 
 ### x_4 based on y_4
 
-Status: implementado parcialmente.
+Status: implementado parcialmente, com leitura sequencial por descritor.
 
 Objetivo:
 
 - introduzir uma semantica inicial de acesso ao conteudo do arquivo
 - permitir escrita de bytes em um arquivo existente
+- permitir leitura de bytes de um arquivo aberto
 
 Semantica adotada:
 
@@ -369,12 +376,15 @@ Semantica adotada:
 - escrita substitui o conteudo a partir do inicio do arquivo
 - `size` registra a quantidade logica de bytes escritos
 - a escrita atual cabe em um unico bloco de dados
+- `ifx_open_file` carrega, a partir do diretorio raiz, tamanho logico e bloco inicial para uma tabela de descritores em memoria
+- `ifx_read_file` recebe um descritor, um buffer e uma contagem de bytes
+- a leitura ocorre a partir do cursor atual do descritor e avanca esse cursor pela quantidade efetivamente lida
+- uma leitura depois do fim logico do arquivo retorna `0`
 
 Pendente:
 
-- leitura
 - acesso por deslocamento arbitrario
-- ponteiro de leitura/escrita
+- `seek` explicito
 - escrita que ultrapassa um bloco
 
 ### x_6 based on y_6
@@ -385,13 +395,13 @@ Operacoes publicas atuais:
 
 - `ifx_create_file`
 - `ifx_write_file`
+- `ifx_open_file`
+- `ifx_read_file`
+- `ifx_close_file`
 - `ifx_close`
 
 Pendente:
 
-- abrir arquivo individual
-- fechar arquivo individual
-- ler
 - remover
 - truncar
 - consultar metadados por API publica
@@ -436,4 +446,4 @@ Esta ordem prioriza uma base persistente correta antes de expor operacoes comple
 
 Proxima etapa recomendada apos esta correcao:
 
-- completar leitura em `x_4` e expor `ifx_read_file`, mantendo alocacao como detalhe interno.
+- evoluir `x_4` com `seek` explicito ou continuar `x_6` com remocao, truncamento e consulta de metadados.
