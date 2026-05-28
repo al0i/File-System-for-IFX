@@ -6,3 +6,5 @@ build/
 
 .codex
 
+**/*.pdf:Zone.Identifier
+
