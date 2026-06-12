@@ -3,7 +3,7 @@ clear
 mkdir -p build
 
 # echo "Compilando..."
-gcc src/main.c -o build/main
+gcc src/main.c src/blocos_virtuais.c src/controle_arquivo_id.c -o build/main
 
 if [ $? -eq 0 ]; then
     ./build/main
