@@ -42,7 +42,67 @@ int InserirBloco(
 	}
 }
 
-BlocosVirtuais *IniciaBlocosVirtuais()
+void EscreverAssinaturaBloco(unsigned char *assinatura_grupo, const char* titulo_secao)
+{
+    int i = 0;
+
+    while (titulo_secao[i] != '\0' && i < TAMANHO_BLOCO)
+    {
+        assinatura_grupo[i] = (unsigned char) titulo_secao[i];
+        i++;
+    }
+    
+}
+
+void EscreverListaBlocos(BlocoAlocado *atual, int arquivo_id)
+{
+    while (atual != NULL)
+	{
+		// printf("Bloco carregado [id]:%u", atual->id);
+
+		switch (atual->id)
+		{
+			case 0:
+				// printf(">>> Reservado a MBR <<<\n");
+                EscreverAssinaturaBloco(atual->data, "mbr");
+				break;
+			case 1:
+				// printf(">>> [Reservado para Tabela FAT] <<<\n");
+                EscreverAssinaturaBloco(atual->data, "fat");
+				break;
+			case 2:
+				// printf(">>> [Reservado para Root Directory] <<<\n");
+                EscreverAssinaturaBloco(atual->data, "root");
+				break;
+			case 3:
+				// printf(">>> [Area de Dados Gerais] <<<\n");
+                EscreverAssinaturaBloco(atual->data, "free_blocks");
+				break;
+			default:
+				break;
+		}
+
+        if (GravaListaBlocos(arquivo_id, atual) < 0)
+		{
+			printf("Erro: Falha ao gravar o bloco %u no arquivo.\n", atual->id);
+			exit(1);
+		}
+		atual = atual->proximo;
+	}
+}
+
+int GravaListaBlocos(int arquivo_id, BlocoAlocado *atual)
+{
+    if (atual != NULL && write(arquivo_id, atual->data, TAMANHO_BLOCO) != TAMANHO_BLOCO)
+    {
+        printf("Erro: Falha ao gravar bloco %u.\n", atual->id);
+        return -1;
+    }
+
+    return 0;
+}
+
+BlocosVirtuais *IniciaBlocosVirtuais(int arquivo_id)
 {
     BlocosVirtuais *lista_blocos = (BlocosVirtuais*) malloc(sizeof(BlocosVirtuais));
     if (lista_blocos == NULL)
@@ -64,34 +124,7 @@ BlocosVirtuais *IniciaBlocosVirtuais()
 		);
 	}
 
-    /**
-     * DEBUG: Exibição dos blocos alocados
-     */
-	// BlocoAlocado *atual = lista_blocos->inicio;
-	// while (atual != NULL)
-	// {
-	// 	printf("Bloco carregado [id]:%u", atual->id);
-
-	// 	switch (atual->id)
-	// 	{
-	// 		case 0:
-	// 			printf(">>> Reservado a MBR <<<\n");
-	// 			break;
-	// 		case 1:
-	// 			printf(">>> [Reservado para Tabela FAT] <<<\n");
-	// 			break;
-	// 		case 2:
-	// 			printf(">>> [Reservado para Root Directory] <<<\n");
-	// 			break;
-	// 		case 3:
-	// 			printf(">>> [Area de Dados Gerais] <<<\n");
-	// 			break;
-	// 		default:
-	// 			break;
-	// 	}
-
-	// 	atual = atual->proximo;
-	// }
+	EscreverListaBlocos(lista_blocos->inicio, arquivo_id);
 
     return lista_blocos;
 }

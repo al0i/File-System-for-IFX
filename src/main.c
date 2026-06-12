@@ -8,7 +8,7 @@ int main()
 	int arquivo_id = AbreArquivo(caminho_arquivo_disco);
 	long arquivo_deslocamento = ReposicionaPonteiroArquivo(arquivo_id, 0);
 
-	BlocosVirtuais *lista_blocos = IniciaBlocosVirtuais();
+	BlocosVirtuais *lista_blocos = IniciaBlocosVirtuais(arquivo_id);
 	
 	LimpaBlocos(lista_blocos);
 

@@ -15,4 +15,4 @@ fi
 echo "" # Só para garantir logs com quebra de linha
 
 # Visualização para blocos criados
-# hexdump -C ./src/resources/virtual_disk.bin
+hexdump -C ./src/resources/storage.bin

@@ -24,6 +24,12 @@ BlocoAlocado* CriaBloco(unsigned int id);
 
 int InserirBloco(BlocoAlocado **inicio, BlocoAlocado **fim, unsigned int id);
 
-BlocosVirtuais* IniciaBlocosVirtuais();
+void EscreverAssinaturaBloco(unsigned char *assinatura_grupo, const char* titulo_secao);
+
+void EscreverListaBlocos(BlocoAlocado *atual, int arquivo_id);
+
+int GravaListaBlocos(int arquivo_id, BlocoAlocado *atual);
+
+BlocosVirtuais* IniciaBlocosVirtuais(int arquivo_id);
 
 void LimpaBlocos(BlocosVirtuais *lista_blocos);
