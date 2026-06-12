@@ -73,7 +73,7 @@ int test_set_block(void){
 }
 
 int test_dir_entry(){
-    create_folder(); // Define o próximo bloco vazio como ocupado, que será referente ao root dir
+    create_root_folder(); // Define o próximo bloco vazio como ocupado, que será referente ao root dir
     // Se chamado mais de uma vez, irá ocupar o próximo bloco vazio e o anterior ficará no esquecimento
     
     // touch Arquivo1.txt:
@@ -86,6 +86,31 @@ int test_dir_entry(){
         printf("Erro ao criar entrada de diretório!\n");
     }
 
-    printf("Nova entrada de diretório criada com sucesso!\n");
+    printf("Novas entradas de diretório criada com sucesso!\n");
     return 0;
+}
+
+int test_rw_file(){
+    test_dir_entry();
+
+    char file_data[BLOCK_SIZE];
+    file_data[0] = 'O';
+    file_data[1] = 'i';
+    file_data[2] = '\0';
+
+    if (write_file("Arquivo1", "txt", file_data) != 0){
+        printf("Erro ao gravar no arquivo!\n");
+        return -1;
+    }
+
+    printf("Arquivo gravado com sucesso!\n");
+    
+    if(read_file("Arquivo1", "txt", file_data) != 0){
+        printf("Erro ao ler o arquivo.\n");
+        return -1;
+    }
+
+    printf("Arquivo lido com sucesso:\n");
+
+    printf("%s\n", file_data);
 }

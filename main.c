@@ -9,7 +9,10 @@ int main() {
     reset_disk();
     init_fat();
 
-    test_dir_entry();
+    record_external_file();
+
+    //printf("%s\n", buffer);
+    //printf(sizeof())
 
     printf("Sucesso!\n");
     return 0;

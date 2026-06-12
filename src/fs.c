@@ -65,12 +65,12 @@ int set_block(int block, int value_set){
     return 0;
 }
 
-int create_folder(){
+int create_root_folder(){
     root_folder_block = next_free_block();
     set_block(root_folder_block, -1);
 }
 
-int new_dir_entry(char nome[8], char ext[3], int type, int first_block){
+int new_dir_entry(char nome[8], char ext[3], int type, int first_block){    
     if (first_block == -1){
         first_block = next_free_block();
     }
@@ -80,14 +80,13 @@ int new_dir_entry(char nome[8], char ext[3], int type, int first_block){
     memcpy(arquivo.ext, ext, 3);
     arquivo.type = type;
     arquivo.first_block = first_block;
-    
     set_block(first_block, -1);
+    
     
     char buffer[BLOCK_SIZE];
     struct DirEntry *entries = (struct DirEntry *) buffer;
-
+    
     open_disk();
-
     read_block(root_folder_block, buffer);
     for (int i=0;i<BLOCK_SIZE/sizeof(struct DirEntry);i++){
         if (entries[i].type == 0) {
@@ -100,6 +99,69 @@ int new_dir_entry(char nome[8], char ext[3], int type, int first_block){
 
     close_disk();
     return -1; // Provavalmente todas as entradas estão ocupadas
+}
+
+// Quando os arquivos ocuparem mais de um bloco, file_data dará problema
+int read_file(char filename[8], char ext[3], void *file_data){
+    char dir_entry[BLOCK_SIZE];
+    struct DirEntry *entries = (struct DirEntry *) dir_entry;
+
+    open_disk();
+    read_block(root_folder_block, dir_entry);
+    
+    for (int i=0;i<BLOCK_SIZE/sizeof(struct DirEntry); i++){
+        if (memcmp(entries[i].nome, filename, 8) == 0 &&
+        memcmp(entries[i].ext, ext, 3) == 0) {
+            
+                read_block(entries[i].first_block, file_data);
+            close_disk();
+            return 0;
+        }
+    }
+        
+    close_disk();
+
+    // Arquivo não encontrado
+    return -1;
+}
+
+int write_file(char filename[8], char ext[3], void *data){
+    char dir_entry[BLOCK_SIZE];
+    struct DirEntry *entries = (struct DirEntry *) dir_entry;
+    
+    open_disk();
+    read_block(root_folder_block, dir_entry);
+
+    for (int i=0;i<BLOCK_SIZE/sizeof(struct DirEntry);i++){
+        if (memcmp(entries[i].nome, filename, 8) == 0 &&
+        memcmp(entries[i].ext, ext, 3) == 0){
+            write_block(entries[i].first_block, data);
+            close_disk();
+            return 0;
+            }
+    }
+
+    close_disk();
+    // Arquivo não encontrado
+    return -1;
+}
+
+int get_first_block(char filename[8], char ext[3]){
+    char dir_entry[BLOCK_SIZE];
+    struct DirEntry *entries = (struct DirEntry *) dir_entry;
+
+    open_disk();
+    read_block(root_folder_block, dir_entry);
+
+    for (int i=0;i<BLOCK_SIZE;i++){
+        if (memcmp(entries[i].nome, filename, 8) == 0 &&
+            memcmp(entries[i].ext, ext, 3) == 0){
+            close_disk();
+            return entries[i].first_block;
+        }
+    }
+    close_disk();
+    return -1;
 }
 
 /*int read_archive(int fd, void buffer, size_t size){
