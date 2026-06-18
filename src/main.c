@@ -6,7 +6,11 @@ int main()
 	const char *caminho_arquivo_disco = "./src/resources/storage.bin";
 	
 	int arquivo_id = AbreArquivo(caminho_arquivo_disco);
-	long arquivo_deslocamento = ReposicionaPonteiroArquivo(arquivo_id, 0);
+	if (ReposicionaPonteiroArquivo(arquivo_id, 0))
+	{
+		printf("Erro: Não foi possível reposicionar o ponteiro do arquivo.\n");
+		return 1;
+	}
 
 	BlocosVirtuais *lista_blocos = IniciaBlocosVirtuais(arquivo_id);
 	

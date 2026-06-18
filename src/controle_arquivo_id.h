@@ -7,4 +7,4 @@
 
 int AbreArquivo(const char *caminho_arquivo_disco);
 
-long ReposicionaPonteiroArquivo(int arquivo_id, long deslocamento);
+int ReposicionaPonteiroArquivo(int arquivo_id, long deslocamento);

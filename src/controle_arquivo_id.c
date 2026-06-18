@@ -23,10 +23,9 @@ int AbreArquivo(const char *caminho_arquivo_disco)
     return arquivo_id;
 }
 
-long ReposicionaPonteiroArquivo(int arquivo_id, long deslocamento)
+int ReposicionaPonteiroArquivo(int arquivo_id, long deslocamento)
 {
-    long arquivo_deslocamento = (long)lseek(arquivo_id, 0, SEEK_SET);
-	if (arquivo_deslocamento < 0)
+	if ((long)lseek(arquivo_id, 0, SEEK_SET) < 0)
 	{
 		printf("Erro: Não foi possível resposicionar o ponteiro do arquivo.\n");
 		close(arquivo_id);
@@ -34,5 +33,5 @@ long ReposicionaPonteiroArquivo(int arquivo_id, long deslocamento)
 	}
     // printf("[DEBUG]: Arquivo aberto e reposicionado no byte: %ld.\n", arquivo_deslocamento);
 
-    return arquivo_deslocamento;
+    return 0;
 }
