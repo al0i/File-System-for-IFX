@@ -1,5 +1,6 @@
 #include "blocos_virtuais.h"
 #include "controle_arquivo_id.h"
+#include "diretorio.h"
 
 int main()
 {
@@ -13,6 +14,29 @@ int main()
 	}
 
 	BlocosVirtuais *lista_blocos = IniciaBlocosVirtuais(arquivo_id);
+
+	EntradaDiretorio diretorio_root[MAX_ENTRADAS_ROOT];
+	InicializaDiretorioRoot(diretorio_root);
+
+	CriaEntradaArquivo(diretorio_root, "README", "md", 3);
+	CriaEntradaArquivo(diretorio_root, "texto", "txt", 4);
+
+	DIR(diretorio_root);
+
+	BlocoAlocado *atual = lista_blocos->inicio;
+    while (atual != NULL)
+    {
+        if (atual->id == 2)
+        {
+            GravarDiretorioNoBloco(atual->data, diretorio_root);
+            
+            lseek(arquivo_id, 2 * TAMANHO_BLOCO, SEEK_SET);
+            
+            GravaListaBlocos(arquivo_id, atual);
+            break;
+        }
+        atual = atual->proximo;
+    }
 	
 	LimpaBlocos(lista_blocos);
 

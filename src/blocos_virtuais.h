@@ -1,3 +1,6 @@
+#ifndef BLOCOS_VIRTUAIS_H
+#define BLOCOS_VIRTUAIS_H
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -33,3 +36,5 @@ int GravaListaBlocos(int arquivo_id, BlocoAlocado *atual);
 BlocosVirtuais* IniciaBlocosVirtuais(int arquivo_id);
 
 void LimpaBlocos(BlocosVirtuais *lista_blocos);
+
+#endif

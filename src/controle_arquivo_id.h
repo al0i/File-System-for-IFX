@@ -1,3 +1,6 @@
+#ifndef CONTROLE_ARQUIVO_ID_H
+#define CONTROLE_ARQUIVO_ID_H
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -8,3 +11,5 @@
 int AbreArquivo(const char *caminho_arquivo_disco);
 
 int ReposicionaPonteiroArquivo(int arquivo_id, long deslocamento);
+
+#endif
